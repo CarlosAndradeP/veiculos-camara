@@ -1,87 +1,114 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem/dist/esm';
 
-const ReportGenerator = () => {
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [filteredLogs, setFilteredLogs] = useState([]);
-  
-    const dummyLogs = [
-    {
-      vehiclePlate: 'ABC1234',
-      initialOdometer: 10000,
-      finalOdometer: 10500,
-      destination: 'City A',
-      submissionTime: '2024-01-15T10:00:00.000Z',
-    },
-    {
-      vehiclePlate: 'XYZ5678',
-      initialOdometer: 25000,
-      finalOdometer: 25250,
-      destination: 'City B',
-      submissionTime: '2024-01-20T14:30:00.000Z',
-    },
-    {
-      vehiclePlate: 'DEF9012',
-      initialOdometer: 5000,
-      finalOdometer: 5150,
-      destination: 'City C',
-      submissionTime: '2024-02-01T09:15:00.000Z',
-    },
-  ];
 
-  const handleGenerateReport = () => {
-    let filtered = dummyLogs;
+function ReportGenerator() {
+    const [startDate, setStartDate] = useState('');    
+    const [endDate, setEndDate] = useState('');
+    const [filteredLogs, setFilteredLogs] = useState([]);
+    const [trips, setTrips] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+    // Load trips on component mount
+    useEffect(() => {
+        loadTrips();
+    }, []);
 
-      filtered = dummyLogs.filter(dummyLog => {
-        const logDate = new Date(dummyLog.submissionTime);
-        return logDate >= start && logDate <= end;
-      });
-    }
+    // Function to load trips from file
+    const loadTrips = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const result = await Filesystem.readFile({
+                path: 'corridas.txt',
+                directory: Directory.Data,
+                encoding: Encoding.UTF8,
+            });
+            const loadedTrips = JSON.parse(result.data) || [];
+            setTrips(loadedTrips.filter(trip => trip.endOdometer)); // Filter only completed trips
+            setFilteredLogs(loadedTrips.filter(trip => trip.endOdometer));
+        } catch (e) {
+            console.error('Error reading or parsing trip data', e);
+            setError('Falha ao carregar os dados da corrida.');
+            setTrips([]);
+            setFilteredLogs([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    setFilteredLogs(filtered);
-  };  const handleExportPdf = () => {
-    console.log("PDF generated");
-    alert('PDF generated');
-  };
+    const handleGenerateReport = () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            let filtered = trips;
 
-  return (
-    <div>
-      <h2>Report Generator</h2>
-      <div>
-        <label htmlFor="startDate">Start Date:</label>
-        <input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} />
-      </div>
-      <div>
-        <label htmlFor="endDate">End Date:</label>
-        <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} />
-      </div>
-      <button onClick={handleGenerateReport}>Generate Report</button>
-      <button onClick={handleExportPdf}>Export PDF</button>
-      <Link to="/">Back to Main Menu</Link>
+            if (startDate && endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
 
-      {filteredLogs.length > 0 && (
+                filtered = trips.filter(trip => {
+                    if (trip.startDate) {
+                        const [day, month, year] = trip.startDate.split('/');
+                        const tripDate = new Date(`${year}-${month}-${day}`);
+                        return tripDate >= start && tripDate <= end;
+                    }
+                    return false;
+                });
+            }
+
+            setFilteredLogs(filtered);
+        } catch (e) {
+            console.error('Error generating report', e);
+            setError('Erro ao gerar o relatório.');
+            setFilteredLogs([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
         <div>
-          <h3>Filtered Logs</h3>
-          <ul>
-            {filteredLogs.map((log, index) => (
-              <li key={index}>
-                <p>Vehicle Plate: {log.vehiclePlate}</p>
-                <p>Initial Odometer: {log.initialOdometer}</p>
-                <p>Final Odometer: {log.finalOdometer}</p>
-                <p>Destination: {log.destination}</p>
-                <p>Submission Time: {log.submissionTime}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
+            <h2>Gerador de Relatórios</h2>
 
+            <div>
+                <label htmlFor="startDate">Data Inicial: {startDate}</label>
+                <input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+
+            <div>
+                <label htmlFor="endDate">Data Final:</label>
+                <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            </div>
+
+            <button onClick={handleGenerateReport} disabled={isLoading}>Gerar Relatório</button>
+
+            {isLoading && <p>Carregando...</p>}
+
+            {filteredLogs.length > 0 && (
+                <div>
+                    <h3>Relatório</h3>
+                    <ul>
+                        {filteredLogs.map((log, index) => (
+                            <li key={index}>
+                                <p>Placa do Veículo: {log.vehiclePlate}</p>
+                                <p>Odômetro Inicial: {log.initialOdometer}</p>
+                                <p>Odômetro Final: {log.finalOdometer}</p>
+                                <p>Destino: {log.destination}</p>
+                                <p>Data Inicial: {log.startDate} {log.startTime}</p>
+                                <p>Data Final: {log.endDate} {log.endTime}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {error && <p style={{ color: 'red' }}>{error}</p>}
+
+            <Link to="/">Voltar ao Menu Principal</Link>
+        </div>
+    );
+}
 export default ReportGenerator;

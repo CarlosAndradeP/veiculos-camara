@@ -12,16 +12,16 @@ function MainMenu() {
         <nav>
           <ul>
             <li>
-              <Link to="/register-vehicle">Register Vehicle</Link>
+              <Link to="/register-vehicle">Registrar Veículo</Link>
             </li>
             <li>
-              <Link to="/start-trip">Start Trip</Link>  
+              <Link to="/start-trip">Iniciar Corrida</Link>  
             </li>
             <li>
-              <Link to="/end-trip">End Trip</Link>
+              <Link to="/end-trip">Finalizar Corrida</Link>
             </li>
             <li>
-              <Link to="/generate-reports">Generate Reports</Link>
+              <Link to="/generate-reports">Gerar Relatórios</Link>
             </li>
           </ul>
         </nav>

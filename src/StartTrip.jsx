@@ -1,32 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem/dist/esm';
+import { Toast } from '@capacitor/toast';
 function StartTrip() {
+  // State variables
+  const [trips, setTrips] = useState([]);
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [initialOdometer, setInitialOdometer] = useState('');
+  const [error, setError] = useState('');
+
+  // Load trips on component mount
+  useEffect(() => {
+    loadTrips();
+  }, []);
+
+  // Function to load trips from file
+  const loadTrips = async () => {
+    try {
+      const result = await Filesystem.readFile({
+        path: 'corridas.txt',
+        directory: Directory.Data,
+        encoding: Encoding.UTF8,
+      });
+      setTrips(JSON.parse(result.data));
+    } catch (e) {
+      console.error('Error reading file', e);
+      setError('Failed to load previous trips.');
+      setTrips([]); // Initialize trips to an empty array in case of error
+    }
+  };
 
   const handleVehiclePlateChange = (event) => {
     setVehiclePlate(event.target.value);
+  };
+
+  // Function to check if a trip is already started for a given vehicle plate
+  const isTripAlreadyStarted = (plate) => {
+    return trips.some(trip => trip.vehiclePlate === plate && !trip.endOdometer);
   };
 
   const handleInitialOdometerChange = (event) => {
     setInitialOdometer(event.target.value);
   };
 
-  const handleSubmit = (event) => {
+  // Function to handle form submission
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (vehiclePlate && initialOdometer) {
-      console.log('Vehicle Plate:', vehiclePlate);
-      console.log('Initial Odometer:', initialOdometer);
-      // Here you would typically handle the form submission,
-      // e.g., send data to an API or update the application state.
-      // For this example, we'll just clear the form.
+
+    setError(''); // Clear previous errors
+
+    if (!vehiclePlate || !initialOdometer) {
+      setError('Por favor, preencha todos os campos.');
+      return;
+    }
+
+    if (isTripAlreadyStarted(vehiclePlate)) {
+      setError('A trip for this vehicle is already in progress.');
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const startDate = now.toLocaleDateString();
+      const startTime = now.toLocaleTimeString();
+
+      const newTrip = {
+        vehiclePlate,
+        initialOdometer: parseInt(initialOdometer, 10), // Ensure initialOdometer is a number
+        startDate,
+        startTime,
+      };
+
+      const updatedTrips = [...trips, newTrip];
+      setTrips(updatedTrips);
+
+      await Filesystem.writeFile({
+        path: 'corridas.txt',
+        data: JSON.stringify(updatedTrips),
+        directory: Directory.Data,
+        encoding: Encoding.UTF8,
+      });
+
+      await Toast.show({
+        text: 'Corrida iniciada com sucesso!',
+      });
+
+      // Reset form fields on success
       setVehiclePlate('');
       setInitialOdometer('');
-    } else {
-      alert('Please fill in both fields.');
+    } catch (e) {
+      console.error('Error starting trip:', e);
+      setError('Falha ao iniciar corrida. Por favor, tente novamente.');
+      await Toast.show({
+        text: 'Falha ao iniciar corrida. Por favor, tente novamente.',
+      });
     }
-  };
+  }
 
   return (
     <div>
@@ -34,7 +103,7 @@ function StartTrip() {
       <form onSubmit={handleSubmit}>
         <div>
           <label htmlFor="vehiclePlate">Vehicle Plate:</label>
-          <input
+          <input            
             type="text"
             id="vehiclePlate"
             value={vehiclePlate}
@@ -43,7 +112,7 @@ function StartTrip() {
           />
         </div>
         <div>
-          <label htmlFor="initialOdometer">Initial Odometer:</label>
+          <label htmlFor="initialOdometer">Initial Odometer:</label>          
           <input
             type="number"
             id="initialOdometer"
@@ -52,12 +121,14 @@ function StartTrip() {
             required
           />
         </div>
-        <button type="submit">Start Trip</button>
+        <button type="submit">Start Trip</button>        
       </form>
-      <Link to="/">
-        <button>Back to Main Menu</button>
-      </Link>
-    </div>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <Link to="/">        
+        <button>Back to Main Menu</button>        
+      </Link>      
+    </div>    
   );
 }
 
