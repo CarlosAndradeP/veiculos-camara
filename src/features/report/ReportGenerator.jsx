@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem/dist/esm';
-import jsPDF from 'jspdf';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { jsPDF } from 'jspdf';
 
-
-function ReportGenerator() {
-    const [startDate, setStartDate] = useState('');    
+const ReportGenerator = () => {
+    const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [filteredLogs, setFilteredLogs] = useState([]);
     const [trips, setTrips] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [password, setPassword] = useState('');
 
-    // Load trips on component mount
     useEffect(() => {
         loadTrips();
     }, []);
 
-    // Function to load trips from file
     const loadTrips = async () => {
         setIsLoading(true);
         setError('');
@@ -40,6 +38,29 @@ function ReportGenerator() {
         }
     };
 
+    const handleClearData = async () => {
+        if (password !== '123') {
+            setError('Senha incorreta!');
+            return;
+        }
+        setIsLoading(true);
+        setError('');
+        try {
+            await Filesystem.deleteFile({
+                path: 'corridas.txt',
+                directory: Directory.Data,
+            });
+            await Filesystem.deleteFile({
+                path: 'vehicles.txt',
+                directory: Directory.Data,
+            });
+            loadTrips();
+        } catch (e) {
+            setError('Erro ao limpar os dados.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
     const handleGenerateReport = () => {
         setIsLoading(true);
         setError('');
@@ -72,36 +93,34 @@ function ReportGenerator() {
 
     const exportToPDF = () => {
         const doc = new jsPDF();
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        doc.text(`Relatório de ${start.toLocaleDateString()} até ${end.toLocaleDateString()}`, 10, 10);
         let y = 20;
-
-        doc.setFontSize(20);
-        doc.text("Relatório de Corridas", 20, y);
-        y += 20;
-
-        if (filteredLogs.length === 0) {
-            doc.setFontSize(12);
-            doc.text("Nenhuma corrida encontrada para o período selecionado.", 20, y);
-        } else {
-            filteredLogs.forEach((log, index) => {
-                doc.setFontSize(16);
-                doc.text(`Corrida ${index + 1}`, 20, y);
-                y += 10;
-
-                doc.setFontSize(12);
-                doc.text(`Placa do Veículo: ${log.vehiclePlate}`, 20, y); y += 10;
-                doc.text(`Odômetro Inicial: ${log.initialOdometer}`, 20, y); y += 10;
-                doc.text(`Odômetro Final: ${log.endOdometer !== undefined ? log.endOdometer : 0}`, 20, y); y += 10;
-                doc.text(`Destino: ${log.destination}`, 20, y); y += 10;
-                doc.text(`Data Inicial: ${log.startDate} ${log.startTime}`, 20, y); y += 10;
-                doc.text(`Data Final: ${log.endDate} ${log.endTime}`, 20, y); y += 10;
-                if (log.violations && log.violations.length > 0) {
-                    doc.text(`Violações: ${log.violations.join(', ')}`, 20, y); y += 10;
-                }
-                y += 10; // Add space after each log
-            });
-        }
-        doc.save("relatorio_corridas.pdf");
+        filteredLogs.forEach((log, index) => {
+            if (y > 270) {
+                doc.addPage();
+                y = 20;
+            }
+            doc.text(`Corrida ${index + 1}:`, 10, y);
+            y += 10;
+            doc.text(`Placa do Veículo: ${log.vehiclePlate}`, 10, y);
+            y += 10;
+            doc.text(`Odômetro Inicial: ${log.initialOdometer}`, 10, y);
+            y += 10;
+            doc.text(`Odômetro Final: ${log.endOdometer !== undefined ? log.endOdometer : 0}`, 10, y);
+            y += 10;
+            doc.text(`Destino: ${log.destination}`, 10, y);
+            y += 10;
+            doc.text(`Data Inicial: ${log.startDate} ${log.startTime}`, 10, y);
+            y += 10;
+            doc.text(`Data Final: ${log.endDate} ${log.endTime}`, 10, y);
+            y += 20;
+        });
+        doc.save('report.pdf');
     };
+
     return (
         <div>
             <h2>Gerador de Relatórios</h2>
@@ -116,8 +135,13 @@ function ReportGenerator() {
                 <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
 
+            <div>
+                <input type="text" id="password" placeholder="Digite a senha" value={password} onChange={e => setPassword(e.target.value)} />
+            </div>
+
+            <button onClick={handleClearData} disabled={isLoading}>Limpar Dados</button>
             <button onClick={handleGenerateReport} disabled={isLoading}>Gerar Relatório</button>
-            {filteredLogs.length > 0 && <button onClick={exportToPDF}>Exportar para PDF</button>}
+            {filteredLogs.length > 0 && <button onClick={exportToPDF}>Exportar PDF</button>}
 
             {isLoading && <p>Carregando...</p>}
 
@@ -147,5 +171,6 @@ function ReportGenerator() {
             <Link to="/">Voltar ao Menu Principal</Link>
         </div>
     );
-}
+};
+
 export default ReportGenerator;
