@@ -5,6 +5,7 @@ import { Toast } from '@capacitor/toast';
 function StartTrip() {
   // State variables
   const [trips, setTrips] = useState([]);
+  const [uniqueVehiclePlates, setUniqueVehiclePlates] = useState([]);
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [initialOdometer, setInitialOdometer] = useState('');
   const [error, setError] = useState('');
@@ -22,11 +23,19 @@ function StartTrip() {
         directory: Directory.Data,
         encoding: Encoding.UTF8,
       });
-      setTrips(JSON.parse(result.data));
+      const loadedTrips = JSON.parse(result.data) || [];
+      setTrips(loadedTrips);
+
+      // Extract unique vehicle plates
+      const plates = [...new Set(loadedTrips.map(trip => trip.vehiclePlate))];
+      setUniqueVehiclePlates(plates);
+
+      if (plates.length > 0) {
+        setVehiclePlate(plates[0]); // Set the initial value if plates are available
+      }
     } catch (e) {
       console.error('Error reading file', e);
       setError('Failed to load previous trips.');
-      setTrips([]); // Initialize trips to an empty array in case of error
     }
   };
 
@@ -69,6 +78,7 @@ function StartTrip() {
         initialOdometer: parseInt(initialOdometer, 10), // Ensure initialOdometer is a number
         startDate,
         startTime,
+        violations: []
       };
 
       const updatedTrips = [...trips, newTrip];
@@ -103,14 +113,17 @@ function StartTrip() {
       <form onSubmit={handleSubmit}>
         <div>
           <label htmlFor="vehiclePlate">Vehicle Plate:</label>
-          <input            
-            type="text"
-            id="vehiclePlate"
-            value={vehiclePlate}
-            onChange={handleVehiclePlateChange}
-            required
-          />
-        </div>
+          {uniqueVehiclePlates.length > 0 ? (
+            <select id="vehiclePlate" value={vehiclePlate} onChange={handleVehiclePlateChange} required>
+              {uniqueVehiclePlates.map((plate) => (
+                <option key={plate} value={plate}>
+                  {plate}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p>No registered vehicles found.</p>
+          )}        </div>
         <div>
           <label htmlFor="initialOdometer">Initial Odometer:</label>          
           <input

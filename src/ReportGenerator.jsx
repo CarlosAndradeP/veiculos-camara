@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem/dist/esm';
+import jsPDF from 'jspdf';
 
 
 function ReportGenerator() {
@@ -27,8 +28,8 @@ function ReportGenerator() {
                 encoding: Encoding.UTF8,
             });
             const loadedTrips = JSON.parse(result.data) || [];
-            setTrips(loadedTrips.filter(trip => trip.endOdometer)); // Filter only completed trips
-            setFilteredLogs(loadedTrips.filter(trip => trip.endOdometer));
+            setTrips(loadedTrips);
+            setFilteredLogs(loadedTrips);
         } catch (e) {
             console.error('Error reading or parsing trip data', e);
             setError('Falha ao carregar os dados da corrida.');
@@ -69,6 +70,38 @@ function ReportGenerator() {
         }
     };
 
+    const exportToPDF = () => {
+        const doc = new jsPDF();
+        let y = 20;
+
+        doc.setFontSize(20);
+        doc.text("Relatório de Corridas", 20, y);
+        y += 20;
+
+        if (filteredLogs.length === 0) {
+            doc.setFontSize(12);
+            doc.text("Nenhuma corrida encontrada para o período selecionado.", 20, y);
+        } else {
+            filteredLogs.forEach((log, index) => {
+                doc.setFontSize(16);
+                doc.text(`Corrida ${index + 1}`, 20, y);
+                y += 10;
+
+                doc.setFontSize(12);
+                doc.text(`Placa do Veículo: ${log.vehiclePlate}`, 20, y); y += 10;
+                doc.text(`Odômetro Inicial: ${log.initialOdometer}`, 20, y); y += 10;
+                doc.text(`Odômetro Final: ${log.endOdometer !== undefined ? log.endOdometer : 0}`, 20, y); y += 10;
+                doc.text(`Destino: ${log.destination}`, 20, y); y += 10;
+                doc.text(`Data Inicial: ${log.startDate} ${log.startTime}`, 20, y); y += 10;
+                doc.text(`Data Final: ${log.endDate} ${log.endTime}`, 20, y); y += 10;
+                if (log.violations && log.violations.length > 0) {
+                    doc.text(`Violações: ${log.violations.join(', ')}`, 20, y); y += 10;
+                }
+                y += 10; // Add space after each log
+            });
+        }
+        doc.save("relatorio_corridas.pdf");
+    };
     return (
         <div>
             <h2>Gerador de Relatórios</h2>
@@ -84,6 +117,7 @@ function ReportGenerator() {
             </div>
 
             <button onClick={handleGenerateReport} disabled={isLoading}>Gerar Relatório</button>
+            {filteredLogs.length > 0 && <button onClick={exportToPDF}>Exportar para PDF</button>}
 
             {isLoading && <p>Carregando...</p>}
 
@@ -95,10 +129,13 @@ function ReportGenerator() {
                             <li key={index}>
                                 <p>Placa do Veículo: {log.vehiclePlate}</p>
                                 <p>Odômetro Inicial: {log.initialOdometer}</p>
-                                <p>Odômetro Final: {log.finalOdometer}</p>
+                                <p>Odômetro Final: {log.endOdometer !== undefined ? log.endOdometer : 0}</p>
                                 <p>Destino: {log.destination}</p>
                                 <p>Data Inicial: {log.startDate} {log.startTime}</p>
                                 <p>Data Final: {log.endDate} {log.endTime}</p>
+                                {log.violations && log.violations.length > 0 && (
+                                    <p>Violações: {log.violations.join(', ')}</p>
+                                )}
                             </li>
                         ))}
                     </ul>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
+import { FaCar, FaPlay, FaStop, FaFileAlt } from 'react-icons/fa';
 import VeicleControl from './VeicleControl';
 import StartTrip from './StartTrip';
 import EndTrip from './EndTrip';
@@ -8,24 +9,13 @@ import './MainMenu.css';
 function MainMenu() {
 
   return (    
-      <div>
-        <nav>
-          <ul>
-            <li>
-              <Link to="/register-vehicle">Registrar Veículo</Link>
-            </li>
-            <li>
-              <Link to="/start-trip">Iniciar Corrida</Link>  
-            </li>
-            <li>
-              <Link to="/end-trip">Finalizar Corrida</Link>
-            </li>
-            <li>
-              <Link to="/generate-reports">Gerar Relatórios</Link>
-            </li>
-          </ul>
-        </nav>
-
+    <div className="main-menu">
+      <nav>
+        <Link to="/register-vehicle" className="menu-button"><FaCar />Registrar Veículo</Link>
+        <Link to="/start-trip" className="menu-button"><FaPlay />Iniciar Corrida</Link>
+        <Link to="/end-trip" className="menu-button"><FaStop />Finalizar Corrida</Link>
+        <Link to="/generate-reports" className="menu-button"><FaFileAlt />Gerar Relatórios</Link>
+      </nav>
         <Routes>
           <Route path="/register-vehicle" element={<VeicleControl />} />
           <Route path="/start-trip" element={<StartTrip />} />

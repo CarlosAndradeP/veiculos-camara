@@ -26,7 +26,7 @@ function EndTrip() {
                 encoding: Encoding.UTF8,
             });
             const trips = JSON.parse(result.data) || [];
-            setOpenTrips(trips.filter(trip => !trip.endOdometer));            
+            setOpenTrips(trips);            
             setError('');            
         } catch (e) {
             console.error('Falha ao ler o arquivo', e);
@@ -83,6 +83,7 @@ function EndTrip() {
                 endOdometer: parseInt(finalOdometer, 10),
                 endDate: new Date().toLocaleDateString(),
                 endTime: new Date().toLocaleTimeString(),
+                violations: selectedTrip.violations,
             };
 
             // Write the updated trips back to the file
